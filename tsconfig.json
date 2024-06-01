@@ -10,8 +10,6 @@
     "skipLibCheck": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "sourceMap": true
-  },
-  "include": ["**/*.ts"],
-  "exclude": ["scripts/**/*.ts"]
+    "exactOptionalPropertyTypes": true
+  }
 }
