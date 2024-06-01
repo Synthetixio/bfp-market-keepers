@@ -36,6 +36,7 @@ export const getBfpMarketProxy = async (chain: Chain, privateKey: `0x${string}`)
   });
 
   return {
+    ProxyAddress,
     BfpMarketProxy: {
       PerpMarketFactoryModule,
       AccountModule,
