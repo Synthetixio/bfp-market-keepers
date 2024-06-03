@@ -1,22 +1,19 @@
 require('dotenv').config();
 
-import { erc20Abi, fromHex, getContract } from 'viem';
+import { Address, erc20Abi, fromHex, getContract } from 'viem';
 import { sepolia } from 'viem/chains';
 import { getLogger } from '../logger';
 import { getConfig } from '../config';
-import { getBfpMarketProxy } from '../contracts';
+import { getBfpContracts } from '../contracts';
 import { MIN_MARGIN_USD } from '../constants';
 import { Wei } from '../wei';
 import { oneOf, sleep } from '../util';
+import type { BfpContractContext } from '../typed';
 
 const config = getConfig();
 const logger = getLogger('spam');
 
-type AwaitedOneLevel<T> = T extends Promise<infer U> ? U : T;
-
-export type Ctx = AwaitedOneLevel<ReturnType<typeof getBfpMarketProxy>>;
-
-const getOrCreateAccount = async ({ BfpMarketProxy, client, account }: Ctx) => {
+const getOrCreateAccount = async ({ BfpMarketProxy, client, account }: BfpContractContext) => {
   const accountNftBalanceOf = await BfpMarketProxy.AccountTokenModule.read.balanceOf([
     account.address,
   ]);
@@ -31,7 +28,7 @@ const getOrCreateAccount = async ({ BfpMarketProxy, client, account }: Ctx) => {
 const depositMargin = async (
   accountId: bigint,
   marketId: bigint,
-  { BfpMarketProxy, ProxyAddress, client, wallet, account }: Ctx
+  { BfpMarketProxy, BfpMarketProxyAddress, client, wallet, account }: BfpContractContext
 ) => {
   const { MarginModule, PerpAccountModule } = BfpMarketProxy;
 
@@ -68,7 +65,7 @@ const depositMargin = async (
     const [symbol, balanceOf, allowance] = await Promise.all([
       ERC20Contract.read.symbol(),
       ERC20Contract.read.balanceOf([account.address]),
-      ERC20Contract.read.allowance([account.address, ProxyAddress]),
+      ERC20Contract.read.allowance([account.address, BfpMarketProxyAddress]),
     ]);
 
     if (balanceOf === 0n) {
@@ -84,7 +81,7 @@ const depositMargin = async (
     logger.info(`BfpMarket.deposit(${symbol},${Wei.fmt(size)}) $${Wei.fmt(depositUsd)}`);
 
     if (allowance < size) {
-      const hash = await ERC20Contract.write.approve([ProxyAddress, size]);
+      const hash = await ERC20Contract.write.approve([BfpMarketProxyAddress, size]);
       await client.waitForTransactionReceipt({ hash });
     }
 
@@ -107,14 +104,14 @@ const depositMargin = async (
 const hamspamspecial = async (
   accountId: bigint,
   marketId: bigint,
-  { BfpMarketProxy, client }: Ctx
+  { BfpMarketProxy, client }: BfpContractContext
 ) => {
   const { PerpAccountModule, OrderModule, MarginModule } = BfpMarketProxy;
 
   const order = await OrderModule.read.getOrderDigest([accountId, marketId]);
   if (order.sizeDelta !== 0n) {
     if (order.isStale) {
-      logger.info(`Stale order found with size=${Wei.fmt(order.sizeDelta)}`);
+      logger.info(`Cancelling stale order of size ${Wei.fmt(order.sizeDelta)}`);
       const hash = await OrderModule.write.cancelStaleOrder([accountId, marketId]);
       await client.waitForTransactionReceipt({ hash, confirmations: 1 });
     } else {
@@ -174,7 +171,7 @@ const hamspamspecial = async (
 
 const main = async () => {
   try {
-    const ctx = await getBfpMarketProxy(sepolia, config.privateKey as `0x${string}`, config.rpcUrl);
+    const ctx = await getBfpContracts(sepolia, config.privateKey as Address, config.rpcUrl);
     const { BfpMarketProxy, account } = ctx;
     logger.info(`Trader address: ${account.address}`);
 

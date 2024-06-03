@@ -1,26 +1,23 @@
-import { Chain, createPublicClient, createWalletClient, getContract, http } from 'viem';
+import { Address, Chain, createPublicClient, createWalletClient, getContract, http } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { Deployments } from './deployments/synthetix-bfp-market_1.0.0-alpha.2';
 
-export const getBfpMarketProxy = async (
-  chain: Chain,
-  privateKey: `0x${string}`,
-  rpcUrl: string
-) => {
+export const getBfpContracts = async (chain: Chain, pk: Address, rpcUrl: string) => {
   const transport = http(rpcUrl);
+
   const publicClient = createPublicClient({ chain, transport });
-  const account = privateKeyToAccount(privateKey);
+  const account = privateKeyToAccount(pk);
   const wallet = createWalletClient({ chain, transport, account });
   const client = { public: publicClient, wallet };
 
-  const ProxyAddress = Deployments.BfpMarketProxy.address;
+  const BfpMarketProxyAddress = Deployments.BfpMarketProxy.address;
   const PerpMarketFactoryModule = getContract({
-    address: ProxyAddress,
+    address: BfpMarketProxyAddress,
     abi: Deployments.PerpMarketFactoryModule.abi,
     client,
   });
   const AccountModule = getContract({
-    address: ProxyAddress,
+    address: BfpMarketProxyAddress,
     abi: Deployments.AccountModule.abi,
     client,
   });
@@ -31,23 +28,23 @@ export const getBfpMarketProxy = async (
     client,
   });
   const PerpAccountModule = getContract({
-    address: ProxyAddress,
+    address: BfpMarketProxyAddress,
     abi: Deployments.PerpAccountModule.abi,
     client,
   });
   const MarginModule = getContract({
-    address: ProxyAddress,
+    address: BfpMarketProxyAddress,
     abi: Deployments.MarginModule.abi,
     client,
   });
   const OrderModule = getContract({
-    address: ProxyAddress,
+    address: BfpMarketProxyAddress,
     abi: Deployments.OrderModule.abi,
     client,
   });
 
   return {
-    ProxyAddress,
+    BfpMarketProxyAddress,
     BfpMarketProxy: {
       PerpMarketFactoryModule,
       AccountModule,
