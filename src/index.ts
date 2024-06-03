@@ -7,6 +7,7 @@ import { getConfig } from './config';
 import { getBfpMarketProxy } from './contracts';
 import { MIN_MARGIN_USD } from './constants';
 import { Wei } from './wei';
+import { oneOf, sleep } from './util';
 
 const config = getConfig();
 const logger = getLogger('main');
@@ -103,9 +104,77 @@ const depositMargin = async (
   }
 };
 
+const hamspamspecial = async (
+  accountId: bigint,
+  marketId: bigint,
+  { BfpMarketProxy, client }: Ctx
+) => {
+  const { PerpAccountModule, OrderModule, MarginModule } = BfpMarketProxy;
+
+  const order = await OrderModule.read.getOrderDigest([accountId, marketId]);
+  if (order.sizeDelta !== 0n) {
+    if (order.isStale) {
+      logger.info(`Stale order found with size=${Wei.fmt(order.sizeDelta)}`);
+      const hash = await OrderModule.write.cancelStaleOrder([accountId, marketId]);
+      await client.waitForTransactionReceipt({ hash, confirmations: 1 });
+    } else {
+      if (order.isReady) {
+        logger.info('Order ready for settlement. Waiting for keeper');
+      } else {
+        logger.info('Order pending settlement... waiting');
+      }
+      return;
+    }
+  }
+
+  const position = await PerpAccountModule.read.getPositionDigest([accountId, marketId]);
+  if (position.size !== 0n) {
+    logger.info(`Found position of size=${Wei.fmt(position.size)}`);
+
+    const sizeDelta = Wei.mul(position.size, Wei.toWei(-1));
+    const fillPrice = await OrderModule.read.getFillPrice([marketId, sizeDelta]);
+    const limitPrice = Wei.mul(fillPrice, sizeDelta > 0 ? Wei.toWei(1.05) : Wei.toWei(0.95));
+
+    logger.info(`Closing position with size ${Wei.fmt(sizeDelta)} ($${Wei.fmt(limitPrice)} limit)`);
+    const hash = await OrderModule.write.commitOrder([
+      accountId,
+      marketId,
+      sizeDelta,
+      limitPrice,
+      0n,
+      [],
+    ]);
+    await client.waitForTransactionReceipt({ hash, confirmations: 1 });
+  }
+
+  const { discountedMarginUsd } = await MarginModule.read.getMarginDigest([accountId, marketId]);
+
+  const LEVERAGE_OPTIONS = [0.25, 0.5, 0.75, 1, 1.5, 2, 2.5, 3];
+  const leverage = Wei.toWei(oneOf(LEVERAGE_OPTIONS));
+
+  const marginUsageUsd = Wei.mul(discountedMarginUsd, leverage);
+  const oraclePrice = await OrderModule.read.getOraclePrice([marketId]);
+  const sizeDelta = Wei.div(marginUsageUsd, oraclePrice);
+  const fillPrice = await OrderModule.read.getFillPrice([marketId, sizeDelta]);
+  const limitPrice = Wei.mul(fillPrice, sizeDelta > 0 ? Wei.toWei(1.05) : Wei.toWei(0.95));
+
+  logger.info(
+    `New order size ${Wei.fmt(sizeDelta)} ($${Wei.fmt(limitPrice)} limit ${Wei.fmt(leverage)}x)`
+  );
+  const hash = await OrderModule.write.commitOrder([
+    accountId,
+    marketId,
+    sizeDelta,
+    limitPrice,
+    0n,
+    [],
+  ]);
+  await client.waitForTransactionReceipt({ hash, confirmations: 1 });
+};
+
 const main = async () => {
   try {
-    const ctx = await getBfpMarketProxy(sepolia, config.privateKey as `0x${string}`);
+    const ctx = await getBfpMarketProxy(sepolia, config.privateKey as `0x${string}`, config.rpcUrl);
     const { BfpMarketProxy, account } = ctx;
     logger.info(`Trader address: ${account.address}`);
 
@@ -125,7 +194,14 @@ const main = async () => {
     const accountId = await getOrCreateAccount(ctx);
     logger.info(`Using accountId: ${accountId}`);
 
-    await depositMargin(accountId, marketId, ctx);
+    // Spam the BfpMarket with deposits, orders, cancelations, etc.
+    while (true) {
+      await depositMargin(accountId, marketId, ctx);
+      await hamspamspecial(accountId, marketId, ctx);
+
+      logger.info('Waiting...');
+      await sleep(12 * 1000);
+    }
   } catch (err) {
     logger.error(err);
   }

@@ -7,6 +7,7 @@ export const DEFAULT_CONFIG = {
 export const AppConfigSchema = z.object({
   logLevel: z.string().default(DEFAULT_CONFIG.logLevel),
   privateKey: z.string().startsWith('0x'),
+  rpcUrl: z.string().url(),
 });
 
 export type AppConfig = z.infer<typeof AppConfigSchema>;
@@ -21,6 +22,7 @@ export const getConfig = (hardRefresh = false): AppConfig => {
   const result = AppConfigSchema.safeParse({
     logLevel: process.env.LOG_LEVEL,
     privateKey: process.env.PRIVATE_KEY,
+    rpcUrl: process.env.RPC_URL,
   });
 
   if (!result.success) {
