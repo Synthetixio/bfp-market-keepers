@@ -8,3 +8,9 @@ export type PendingOrder = {
   marketId: bigint;
   commitmentTime: bigint;
 };
+
+export type MarketConfiguration = AwaitedOneLevel<
+  ReturnType<
+    BfpContractContext['BfpMarketProxy']['MarketConfigurationModule']['read']['getMarketConfigurationById']
+  >
+>;

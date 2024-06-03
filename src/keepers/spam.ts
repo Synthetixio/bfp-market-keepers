@@ -184,7 +184,7 @@ const main = async () => {
       throw new Error('Missing PK for spam keeper');
     }
 
-    const ctx = await getBfpContracts(sepolia, config.pk.spam as Address, config.rpc.http);
+    const ctx = await getBfpContracts(sepolia, config.pk.spam as Address);
     const { account, client } = ctx;
 
     const balance = await client.getBalance({ address: account.address });

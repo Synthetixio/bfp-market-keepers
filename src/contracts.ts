@@ -11,15 +11,16 @@ import { privateKeyToAccount } from 'viem/accounts';
 import { Deployments } from './deployments/synthetix-bfp-market_1.0.0-alpha.2';
 import { getLogger } from './logger';
 import type { BfpContractContext } from './typed';
+import { getConfig } from './config';
 
+const config = getConfig();
 const logger = getLogger('contracts');
 
-export const getBfpContracts = async (chain: Chain, pk: Address, rpcUrl: string) => {
-  const transport = http(rpcUrl);
-
-  const client = createPublicClient({ chain, transport });
+export const getBfpContracts = async (chain: Chain, pk: Address) => {
+  const client = createPublicClient({ chain, transport: http(config.rpc.http) });
+  const wsClient = createPublicClient({ chain, transport: http(config.rpc.ws) });
   const account = privateKeyToAccount(pk);
-  const wallet = createWalletClient({ chain, transport, account });
+  const wallet = createWalletClient({ chain, transport: http(config.rpc.http), account });
 
   const BfpMarketProxyAddress = Deployments.BfpMarketProxy.address;
   const getContractArgs = { address: BfpMarketProxyAddress, client: { public: client, wallet } };
@@ -67,6 +68,7 @@ export const getBfpContracts = async (chain: Chain, pk: Address, rpcUrl: string)
       OrderModule,
     },
     client,
+    wsClient,
     wallet,
     account,
   };
