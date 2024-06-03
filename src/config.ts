@@ -10,7 +10,10 @@ export const AppConfigSchema = z.object({
     spam: z.string().startsWith('0x').optional(),
     settlement: z.string().startsWith('0x').optional(),
   }),
-  rpcUrl: z.string().url(),
+  rpc: z.object({
+    http: z.string().url(),
+    ws: z.string().url(),
+  }),
 });
 
 export type AppConfig = z.infer<typeof AppConfigSchema>;
@@ -28,7 +31,10 @@ export const getConfig = (hardRefresh = false): AppConfig => {
       spam: process.env.PK_SPAM,
       settlement: process.env.PK_SETTLEMENT,
     },
-    rpcUrl: process.env.RPC_URL,
+    rpc: {
+      http: process.env.RPC_URL_HTTP,
+      ws: process.env.RPC_URL_WS,
+    },
   });
 
   if (!result.success) {

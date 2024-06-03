@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-import { Address } from 'viem';
+import { Address, createPublicClient, http } from 'viem';
 import { sepolia } from 'viem/chains';
 import { getLogger } from '../logger';
 import { getConfig } from '../config';
@@ -34,14 +34,15 @@ const main = async () => {
       throw new Error('Missing PK for settlement keeper');
     }
 
-    const ctx = await getBfpContracts(sepolia, config.pk.settlement as Address, config.rpcUrl);
+    const ctx = await getBfpContracts(sepolia, config.pk.settlement as Address, config.rpc.http);
     const { BfpMarketProxyAddress, BfpMarketProxy, account, client } = ctx;
 
     const balance = await client.getBalance({ address: account.address });
     logger.info(`Address: ${account.address} (${Wei.fmt(balance)} ETH)`);
 
-    logger.info('Listening for order commitments...');
-    client.watchContractEvent({
+    logger.info('Begin listening for order commitments...');
+    const wsClient = createPublicClient({ chain: sepolia, transport: http(config.rpc.ws) });
+    wsClient.watchContractEvent({
       address: BfpMarketProxyAddress,
       abi: BfpMarketProxy.OrderModule.abi,
       eventName: 'OrderCommitted',
@@ -65,8 +66,6 @@ const main = async () => {
 
     while (true) {
       await settlePendingOrders(pythPublishTimeMin, ctx);
-
-      logger.info(`Waiting ${WAIT_TIME_INTERVAL_MS}ms...`);
       await sleep(WAIT_TIME_INTERVAL_MS);
     }
   } catch (err) {
