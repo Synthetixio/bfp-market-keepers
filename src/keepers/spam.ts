@@ -1,10 +1,10 @@
 require('dotenv').config();
 
-import { Address, erc20Abi, fromHex, getContract } from 'viem';
+import { Address, erc20Abi, getContract } from 'viem';
 import { sepolia } from 'viem/chains';
 import { getLogger } from '../logger';
 import { getConfig } from '../config';
-import { getBfpContracts } from '../contracts';
+import { getBfpContracts, getBfpMarketId } from '../contracts';
 import { MIN_MARGIN_USD } from '../constants';
 import { Wei } from '../wei';
 import { oneOf, sleep } from '../util';
@@ -12,6 +12,8 @@ import type { BfpContractContext } from '../typed';
 
 const config = getConfig();
 const logger = getLogger('spam');
+
+const SPAM_WAIT_TIME_MS = 12 * 1000;
 
 const getOrCreateAccount = async ({ BfpMarketProxy, client, account }: BfpContractContext) => {
   const accountNftBalanceOf = await BfpMarketProxy.AccountTokenModule.read.balanceOf([
@@ -22,7 +24,14 @@ const getOrCreateAccount = async ({ BfpMarketProxy, client, account }: BfpContra
     const hash = await BfpMarketProxy.AccountModule.write.createAccount();
     await client.waitForTransactionReceipt({ hash });
   }
-  return BfpMarketProxy.AccountTokenModule.read.tokenOfOwnerByIndex([account.address, 0n]);
+
+  const accountId = await BfpMarketProxy.AccountTokenModule.read.tokenOfOwnerByIndex([
+    account.address,
+    0n,
+  ]);
+  logger.info(`Using accountId: ${accountId}`);
+
+  return accountId;
 };
 
 const depositMargin = async (
@@ -101,7 +110,7 @@ const depositMargin = async (
   }
 };
 
-const hamspamspecial = async (
+const hamSpamwichSpecial = async (
   accountId: bigint,
   marketId: bigint,
   { BfpMarketProxy, client }: BfpContractContext
@@ -171,33 +180,26 @@ const hamspamspecial = async (
 
 const main = async () => {
   try {
-    const ctx = await getBfpContracts(sepolia, config.privateKey as Address, config.rpcUrl);
-    const { BfpMarketProxy, account } = ctx;
-    logger.info(`Trader address: ${account.address}`);
-
-    const bfpActiveMarketIds =
-      await BfpMarketProxy.PerpMarketFactoryModule.read.getActiveMarketIds();
-    if (bfpActiveMarketIds.length === 0) {
-      throw new Error('No active markets found');
+    if (!config.pk.spam) {
+      throw new Error('Missing PK for spam keeper');
     }
-    logger.info(`Active BFP markets found: [${bfpActiveMarketIds.join(',')}]`);
 
-    const marketId = bfpActiveMarketIds[0];
-    const { name: marketName } = await BfpMarketProxy.PerpMarketFactoryModule.read.getMarketDigest([
-      marketId,
-    ]);
-    logger.info(`Using marketId: ${marketId} (${fromHex(marketName, 'string')})`);
+    const ctx = await getBfpContracts(sepolia, config.pk.spam as Address, config.rpcUrl);
+    const { account, client } = ctx;
 
+    const balance = await client.getBalance({ address: account.address });
+    logger.info(`Address: ${account.address} (${Wei.fmt(balance)} ETH)`);
+
+    const marketId = await getBfpMarketId(ctx);
     const accountId = await getOrCreateAccount(ctx);
-    logger.info(`Using accountId: ${accountId}`);
 
     // Spam the BfpMarket with deposits, orders, cancelations, etc.
     while (true) {
       await depositMargin(accountId, marketId, ctx);
-      await hamspamspecial(accountId, marketId, ctx);
+      await hamSpamwichSpecial(accountId, marketId, ctx);
 
-      logger.info('Waiting...');
-      await sleep(12 * 1000);
+      logger.info(`Waiting ${SPAM_WAIT_TIME_MS}ms...`);
+      await sleep(SPAM_WAIT_TIME_MS);
     }
   } catch (err) {
     logger.error(err);
