@@ -2,15 +2,15 @@ require('dotenv').config();
 
 import { erc20Abi, fromHex, getContract } from 'viem';
 import { sepolia } from 'viem/chains';
-import { getLogger } from './logger';
-import { getConfig } from './config';
-import { getBfpMarketProxy } from './contracts';
-import { MIN_MARGIN_USD } from './constants';
-import { Wei } from './wei';
-import { oneOf, sleep } from './util';
+import { getLogger } from '../logger';
+import { getConfig } from '../config';
+import { getBfpMarketProxy } from '../contracts';
+import { MIN_MARGIN_USD } from '../constants';
+import { Wei } from '../wei';
+import { oneOf, sleep } from '../util';
 
 const config = getConfig();
-const logger = getLogger('main');
+const logger = getLogger('spam');
 
 type AwaitedOneLevel<T> = T extends Promise<infer U> ? U : T;
 
