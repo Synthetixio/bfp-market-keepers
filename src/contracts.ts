@@ -17,55 +17,56 @@ const logger = getLogger('contracts');
 export const getBfpContracts = async (chain: Chain, pk: Address, rpcUrl: string) => {
   const transport = http(rpcUrl);
 
-  const publicClient = createPublicClient({ chain, transport });
+  const client = createPublicClient({ chain, transport });
   const account = privateKeyToAccount(pk);
   const wallet = createWalletClient({ chain, transport, account });
-  const client = { public: publicClient, wallet };
 
   const BfpMarketProxyAddress = Deployments.BfpMarketProxy.address;
+  const getContractArgs = { address: BfpMarketProxyAddress, client: { public: client, wallet } };
+
   const PerpMarketFactoryModule = getContract({
-    address: BfpMarketProxyAddress,
+    ...getContractArgs,
     abi: Deployments.PerpMarketFactoryModule.abi,
-    client,
+  });
+  const MarketConfigurationModule = getContract({
+    ...getContractArgs,
+    abi: Deployments.MarketConfigurationModule.abi,
   });
   const AccountModule = getContract({
-    address: BfpMarketProxyAddress,
+    ...getContractArgs,
     abi: Deployments.AccountModule.abi,
-    client,
   });
   const accountTokenModuleAddress = await AccountModule.read.getAccountTokenAddress();
   const AccountTokenModule = getContract({
     address: accountTokenModuleAddress,
     abi: Deployments.AccountTokenModule.abi,
-    client,
+    client: { public: client, wallet },
   });
   const PerpAccountModule = getContract({
-    address: BfpMarketProxyAddress,
+    ...getContractArgs,
     abi: Deployments.PerpAccountModule.abi,
-    client,
   });
   const MarginModule = getContract({
-    address: BfpMarketProxyAddress,
+    ...getContractArgs,
     abi: Deployments.MarginModule.abi,
-    client,
   });
   const OrderModule = getContract({
-    address: BfpMarketProxyAddress,
+    ...getContractArgs,
     abi: Deployments.OrderModule.abi,
-    client,
   });
 
   return {
     BfpMarketProxyAddress,
     BfpMarketProxy: {
       PerpMarketFactoryModule,
+      MarketConfigurationModule,
       AccountModule,
       AccountTokenModule,
       PerpAccountModule,
       MarginModule,
       OrderModule,
     },
-    client: publicClient,
+    client,
     wallet,
     account,
   };

@@ -13,7 +13,7 @@ import type { BfpContractContext } from '../typed';
 const config = getConfig();
 const logger = getLogger('spam');
 
-const SPAM_WAIT_TIME_MS = 12 * 1000;
+const WAIT_TIME_INTERVAL_MS = 12 * 1000;
 
 const getOrCreateAccount = async ({ BfpMarketProxy, client, account }: BfpContractContext) => {
   const accountNftBalanceOf = await BfpMarketProxy.AccountTokenModule.read.balanceOf([
@@ -198,8 +198,8 @@ const main = async () => {
       await depositMargin(accountId, marketId, ctx);
       await hamSpamwichSpecial(accountId, marketId, ctx);
 
-      logger.info(`Waiting ${SPAM_WAIT_TIME_MS}ms...`);
-      await sleep(SPAM_WAIT_TIME_MS);
+      logger.info(`Waiting ${WAIT_TIME_INTERVAL_MS}ms...`);
+      await sleep(WAIT_TIME_INTERVAL_MS);
     }
   } catch (err) {
     logger.error(err);
