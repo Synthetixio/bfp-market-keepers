@@ -14,6 +14,7 @@ export const AppConfigSchema = z.object({
     http: z.string().url(),
     ws: z.string().url(),
   }),
+  pythApiUrl: z.string().url(),
 });
 
 export type AppConfig = z.infer<typeof AppConfigSchema>;
@@ -35,6 +36,7 @@ export const getConfig = (hardRefresh = false): AppConfig => {
       http: process.env.RPC_URL_HTTP,
       ws: process.env.RPC_URL_WS,
     },
+    pythApiUrl: process.env.PYTH_API_URL,
   });
 
   if (!result.success) {
