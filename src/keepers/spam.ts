@@ -86,7 +86,7 @@ const depositMargin = async (
     const size = Wei.mul(p, balanceOf);
     const depositUsd = Wei.mul(size, oraclePrice);
 
-    logger.info(`Found ${symbol}.balanceOf==${Wei.fmt(balanceOf)} ($${Wei.fmt(oraclePrice)})`);
+    logger.info(`Found ${symbol}.balanceOf=${Wei.fmt(balanceOf)} ($${Wei.fmt(oraclePrice)})`);
     logger.info(`BfpMarket.deposit(${symbol},${Wei.fmt(size)}) $${Wei.fmt(depositUsd)}`);
 
     if (allowance < size) {
@@ -109,6 +109,8 @@ const depositMargin = async (
     throw new Error('Unable to proceed due to insufficient margin');
   }
 };
+
+const getKeeperBufferUsd = () => oneOf([0n, 1n, 5n, 10n, 25n, 50n]);
 
 const hamSpamwichSpecial = async (
   accountId: bigint,
@@ -147,7 +149,7 @@ const hamSpamwichSpecial = async (
       marketId,
       sizeDelta,
       limitPrice,
-      0n,
+      getKeeperBufferUsd(),
       [],
     ]);
     await client.waitForTransactionReceipt({ hash, confirmations: 1 });
@@ -172,7 +174,7 @@ const hamSpamwichSpecial = async (
     marketId,
     sizeDelta,
     limitPrice,
-    0n,
+    getKeeperBufferUsd(),
     [],
   ]);
   await client.waitForTransactionReceipt({ hash, confirmations: 1 });
