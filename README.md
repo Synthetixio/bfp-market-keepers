@@ -1,5 +1,5 @@
-# bfp-market-order-keeper
+# bfp-market-keepers
 
-**Welcome to bfp-market-order-keeper!**
+**Welcome to bfp-market-keepers!**
 
 TODO

@@ -1,7 +1,7 @@
 {
-  "name": "bfp-market-order-keeper",
+  "name": "bfp-market-keepers",
   "version": "0.0.1",
-  "description": "bfp-market order settlement keeper",
+  "description": "bfp-market keepers",
   "scripts": {
     "keeper:settlement": "ts-node src/keepers/settlement.ts",
     "keeper:spam": "ts-node src/keepers/spam.ts",
